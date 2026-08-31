@@ -1,0 +1,43 @@
+{
+  "schema": 1,
+  "sshaudit_engine_version": "0.1.0",
+  "collected_at": "2026-08-30T12:05:00Z",
+  "mode": "validate",
+  "host": {
+    "hostname": "db-1",
+    "kernel": "5.14.0-427.el9.x86_64",
+    "kernel_version": "5.14.0",
+    "uname": "Linux db-1 5.14.0-427.el9.x86_64 #1 SMP x86_64 GNU/Linux",
+    "arch": "x86_64",
+    "os": {"id": "rhel", "version_id": "9.4", "pretty_name": "Red Hat Enterprise Linux 9.4", "family": "rhel"},
+    "uptime_seconds": 120000,
+    "virtualization": "vmware",
+    "security_module": "selinux:Enforcing"
+  },
+  "identity": {
+    "raw": "uid=1001(audit) gid=1001(audit) groups=1001(audit)",
+    "user": "audit",
+    "uid": 1001,
+    "gid": 1001,
+    "groups": ["audit"],
+    "is_root": false,
+    "privileged_groups": [],
+    "recent_logins": []
+  },
+  "extra_uid0": [],
+  "sudo": {"available": true, "can_list": true, "all_nopasswd": false, "raw": "Sorry, user audit may not run sudo on db-1.", "entries": [], "nopasswd_binaries": []},
+  "suid_sgid": {"suid": [{"path": "/usr/bin/passwd", "owner": "root", "mode": "4755", "binary": "passwd", "dangerous": false}], "sgid": []},
+  "capabilities": [],
+  "cron": {"referenced_scripts": [], "user_crontab": "", "files_seen": ["/etc/crontab"]},
+  "systemd_timers": {"available": true, "timers": ["dnf-makecache.timer"], "writable_units": []},
+  "path_analysis": {"user_path": "/usr/local/bin:/usr/bin", "writable_path_dirs": [], "root_cron_path_hijack": []},
+  "world_writable": {"world_writable_files": [], "root_owned_writable_files": [], "world_writable_dirs": []},
+  "nfs_exports": [],
+  "credentials": {"readable_private_keys": [], "history_secret_hits": [], "config_secret_files": [], "readable_other_homes": []},
+  "docker": {"socket": "/var/run/docker.sock", "socket_present": false, "socket_access": false, "client_present": false, "in_docker_group": false, "local_images": [], "in_container": false},
+  "lxd": {"client_present": false, "in_lxd_group": false, "usable": false},
+  "container": {"in_container": false, "cap_eff": "00000000a80425fb", "privileged_hints": []},
+  "wildcards": {"candidates": []},
+  "validations": [],
+  "errors": []
+}

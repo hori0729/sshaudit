@@ -1,0 +1,47 @@
+id: sudo-other-nopasswd
+title: "sudo NOPASSWD sobre binario no catalogado (revisar manualmente)"
+category: sudo
+vector: sudo
+severity: medium
+tier: A
+reaches_root: false
+validator: list_items
+
+match:
+  all:
+    - path: sudo.entries
+      where:
+        all:
+          - path: dangerous
+            truthy: false
+          - not:
+              path: command
+              equals: ALL
+
+params:
+  list_path: sudo.entries
+  target_field: command
+  where:
+    all:
+      - path: dangerous
+        truthy: false
+      - not:
+          path: command
+          equals: ALL
+  status: potential
+  evidence_fields: [runas, command]
+
+step: "{user} puede ejecutar {target} como root sin password; no está en la lista GTFOBins pero conviene auditarlo."
+
+exploitation_steps: |
+  No verificado. Revisar si {target} permite: escritura/lectura de archivos
+  arbitrarios como root, ejecución de sub-comandos, carga de plugins/módulos,
+  wildcards, o variables de entorno peligrosas (LD_PRELOAD si no está
+  `env_reset`).
+
+remediation: |
+  Confirmar que el binario y sus argumentos permitidos no habilitan ejecución de
+  código como root. Fijar argumentos con un wrapper. Mantener `Defaults env_reset`.
+
+references:
+  - https://gtfobins.github.io/

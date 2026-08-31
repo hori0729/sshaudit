@@ -1,0 +1,40 @@
+id: docker-group
+title: "Miembro del grupo docker / socket de Docker accesible"
+category: containers
+vector: docker
+severity: critical
+tier: A
+reaches_root: true
+validator: from_validation
+validation_hint: docker-group-socket
+
+match:
+  any:
+    - path: docker.socket_access
+      truthy: true
+    - path: docker.in_docker_group
+      truthy: true
+
+params:
+  hint: docker-group-socket
+
+evidence_paths:
+  - docker.socket
+  - docker.local_images
+
+step: "{user} puede hablar con el socket de Docker -> lanzar un contenedor que monta / del host = root."
+
+exploitation_steps: |
+  Confirmado: acceso al socket de Docker (docker info / socket escribible).
+  Escape estándar (NO ejecutado por el motor salvo --mode aggressive):
+     docker run -v /:/mnt --rm -it <imagen_local> chroot /mnt sh
+  Con eso se obtiene una shell root sobre el filesystem del host.
+
+remediation: |
+  Quitar a los usuarios del grupo `docker` (equivale a root). Usar `sudo` con
+  reglas acotadas, rootless Docker, o un socket con autorización (p.ej. plugin
+  authz / Podman rootless). Restringir permisos de /var/run/docker.sock.
+
+references:
+  - https://gtfobins.github.io/gtfobins/docker/
+  - https://docs.docker.com/engine/security/#docker-daemon-attack-surface

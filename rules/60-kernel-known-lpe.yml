@@ -1,0 +1,33 @@
+id: kernel-known-lpe
+title: "Kernel en rango vulnerable a un LPE público conocido"
+category: kernel
+vector: kernel-exploit
+severity: high
+tier: C
+reaches_root: true
+validator: kernel_cve
+
+match:
+  all:
+    - path: host.kernel_version
+      not_empty: true
+
+evidence_paths:
+  - host.uname
+
+step: "El kernel {target} coincide con la condición de un exploit local público. NO se intentó explotar."
+
+exploitation_steps: |
+  Ver la descripción por CVE. El motor NUNCA ejecuta exploits de kernel: solo
+  reporta la coincidencia de versión. Confirmar manualmente que la distro no
+  aplicó un backport y probar en un clon descartable.
+
+remediation: |
+  Actualizar el kernel a la versión parcheada de la distro y reiniciar.
+  Mitigaciones temporales frecuentes:
+    - sysctl kernel.unprivileged_userns_clone=0   (varios LPE de netfilter/overlayfs)
+    - sysctl kernel.unprivileged_bpf_disabled=1
+    - montar /tmp y /dev/shm con noexec,nosuid,nodev
+
+references:
+  - https://www.kernel.org/category/releases.html

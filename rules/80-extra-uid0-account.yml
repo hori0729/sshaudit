@@ -1,0 +1,32 @@
+id: extra-uid0-account
+title: "Cuenta adicional con UID 0"
+category: users
+vector: uid0
+severity: high
+tier: C
+reaches_root: true
+validator: list_items
+
+match:
+  all:
+    - path: extra_uid0
+      not_empty: true
+
+params:
+  list_path: extra_uid0
+  exclude: [root]
+  status: potential
+
+step: "Existe la cuenta {target} con UID 0: es root con otro nombre. Si tiene password débil o clave conocida, es un camino directo."
+
+exploitation_steps: |
+  No verificado. Si {target} tiene shell y credenciales alcanzables (password
+  débil, clave reutilizada, sin password), autenticarse como {target} = root.
+  Revisar /etc/passwd, /etc/shadow (si es legible) y authorized_keys de {target}.
+
+remediation: |
+  Ninguna cuenta salvo `root` debería tener UID 0. Cambiar el UID o eliminar la
+  cuenta. Investigar cómo se creó (puede ser un backdoor).
+
+references:
+  - https://book.hacktricks.wiki/en/linux-hardening/privilege-escalation/index.html#users-info

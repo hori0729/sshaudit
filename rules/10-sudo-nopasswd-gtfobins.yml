@@ -1,0 +1,38 @@
+id: sudo-nopasswd-gtfobins
+title: "sudo NOPASSWD sobre binario explotable (GTFOBins)"
+category: sudo
+vector: sudo
+severity: critical
+tier: A
+reaches_root: true
+validator: from_validation
+validation_hint: sudo-nopasswd-gtfobins
+
+match:
+  all:
+    - path: sudo.nopasswd_binaries
+      not_empty: true
+
+params:
+  hint: sudo-nopasswd-gtfobins
+  fallback_list: sudo.nopasswd_binaries
+
+evidence_paths:
+  - sudo.raw
+
+step: "El usuario {user} puede ejecutar {target} vía sudo sin contraseña; {target} permite escapar a una shell -> root."
+
+exploitation_steps: |
+  1. sudo -n {target} <técnica GTFOBins>   (p.ej. -exec /bin/sh, 'BEGIN{system(...)}', etc.)
+  2. Se obtiene una shell con uid=0.
+  El motor lo validó ejecutando `id` por esa vía y observando uid=0(root).
+
+remediation: |
+  Quitar la regla NOPASSWD o restringirla a un subcomando que no permita
+  ejecución arbitraria. Revisar Cmnd_Alias y `Defaults!` en /etc/sudoers y
+  /etc/sudoers.d/*. Si el binario debe correr como root, envolverlo en un script
+  propio con argumentos fijos.
+
+references:
+  - https://gtfobins.github.io/
+  - https://www.sudo.ws/docs/man/sudoers.man/

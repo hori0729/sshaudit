@@ -1,0 +1,92 @@
+# Unix groups that are, or lead to, root-equivalent access.
+#
+# Used to flag the current user's group membership as an attack path.
+#
+# Schema (per entry):
+#   name       group name (matched exactly)
+#   also       equivalent names on other distros
+#   severity   critical | high | medium
+#   vector     short machine tag used by correlation rules
+#   impact     one-line description of why it matters
+#   validate   whether sshaudit tries a non-destructive confirmation
+#                A -> confirmed automatically (read-only)
+#                B -> only with --aggressive
+#                none -> reported as potential
+
+schema: 1
+
+groups:
+  - name: sudo
+    also: [wheel, admin]
+    severity: high
+    vector: sudo-group
+    impact: "Member can run sudo; effective root depends on sudoers rules (enumerated separately)."
+    validate: A
+
+  - name: docker
+    severity: critical
+    vector: docker-group
+    impact: "Full root: mount host / into a container, or run a privileged container."
+    validate: A          # confirm socket access; container escape is Tier B
+
+  - name: lxd
+    also: [lxc]
+    severity: critical
+    vector: lxd-group
+    impact: "Full root: launch a privileged container with the host filesystem mounted."
+    validate: A          # confirm client works; PoC container is Tier B
+
+  - name: disk
+    severity: critical
+    vector: disk-group
+    impact: "Raw read/write to block devices (/dev/sda*): read /etc/shadow with debugfs, or write files."
+    validate: A          # confirm debugfs/read access, read-only
+
+  - name: shadow
+    severity: high
+    vector: shadow-group
+    impact: "Read /etc/shadow directly -> crack root hash offline."
+    validate: A
+
+  - name: adm
+    severity: medium
+    vector: adm-group
+    impact: "Read most logs (/var/log): often leaks credentials, tokens, session data."
+    validate: A
+
+  - name: video
+    severity: medium
+    vector: video-group
+    impact: "Read framebuffer / GPU memory; can leak screen contents on desktop systems."
+    validate: none
+
+  - name: lp
+    severity: low
+    vector: lp-group
+    impact: "Access to parallel/printer devices; occasionally raw port I/O."
+    validate: none
+
+  - name: kmem
+    severity: critical
+    vector: kmem-group
+    impact: "Read/write kernel memory via /dev/mem, /dev/kmem -> arbitrary code as kernel."
+    validate: none
+
+  - name: root
+    severity: critical
+    vector: root-group
+    impact: "GID 0: write access to many root-group-writable files and directories."
+    validate: A
+
+  - name: staff
+    severity: medium
+    vector: staff-group
+    impact: "Write to /usr/local (and often /usr/local/bin, /usr/local/sbin) -> PATH hijack of admin/cron scripts."
+    validate: A
+
+  - name: adm_systemd
+    also: [systemd-journal]
+    severity: low
+    vector: journal-group
+    impact: "Read the full systemd journal: credential and token leakage."
+    validate: A

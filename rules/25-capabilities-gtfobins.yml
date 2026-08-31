@@ -1,0 +1,43 @@
+id: capabilities-gtfobins
+title: "Capability peligrosa sobre binario explotable"
+category: capabilities
+vector: capabilities
+severity: high
+tier: A
+reaches_root: true
+validator: from_validation
+validation_hint: capabilities-gtfobins
+
+match:
+  all:
+    - path: capabilities
+      where:
+        all:
+          - path: dangerous
+            truthy: true
+
+params:
+  hint: capabilities-gtfobins
+  fallback_list: capabilities
+  fallback_where:
+    all:
+      - path: dangerous
+        truthy: true
+  fallback_target: path
+
+step: "{target} tiene una capability (cap_setuid / cap_dac_read_search / ...) que permite elevar a root sin ser SUID."
+
+exploitation_steps: |
+  - cap_setuid+ep: {target} -c 'os.setuid(0); exec shell'  -> uid 0.
+  - cap_dac_read_search: leer /etc/shadow y crackear el hash de root offline.
+  - cap_dac_override / cap_fowner: sobrescribir archivos de root.
+  El motor intentó la prueba cap_setuid ejecutando `id`; ver evidencia.
+
+remediation: |
+  Quitar la capability (`setcap -r {target}`) o reducirla al mínimo. Preferir
+  que el privilegio lo tenga un servicio dedicado, no un intérprete de uso
+  general (python/perl/ruby/node/php).
+
+references:
+  - https://gtfobins.github.io/
+  - https://man7.org/linux/man-pages/man7/capabilities.7.html

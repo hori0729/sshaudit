@@ -1,0 +1,144 @@
+{
+  "schema": 1,
+  "sshaudit_engine_version": "0.1.0",
+  "collected_at": "2026-08-30T12:00:00Z",
+  "mode": "validate",
+  "host": {
+    "hostname": "web-prod-1",
+    "kernel": "5.10.0-21-amd64",
+    "kernel_version": "5.10.0",
+    "uname": "Linux web-prod-1 5.10.0-21-amd64 #1 SMP Debian 5.10.162-1 x86_64 GNU/Linux",
+    "arch": "x86_64",
+    "os": {"id": "debian", "version_id": "11", "pretty_name": "Debian GNU/Linux 11 (bullseye)", "family": "debian"},
+    "uptime_seconds": 864000,
+    "virtualization": "kvm",
+    "security_module": "none"
+  },
+  "identity": {
+    "raw": "uid=33(www-data) gid=33(www-data) groups=33(www-data),999(docker)",
+    "user": "www-data",
+    "uid": 33,
+    "gid": 33,
+    "groups": ["www-data", "docker"],
+    "is_root": false,
+    "privileged_groups": ["docker"],
+    "recent_logins": []
+  },
+  "extra_uid0": [],
+  "sudo": {
+    "available": true,
+    "can_list": true,
+    "all_nopasswd": false,
+    "raw": "User www-data may run the following commands on web-prod-1:\n    (root) NOPASSWD: /usr/bin/find",
+    "entries": [
+      {"runas": "root", "command": "/usr/bin/find", "dangerous": true}
+    ],
+    "nopasswd_binaries": ["/usr/bin/find"]
+  },
+  "suid_sgid": {
+    "suid": [
+      {"path": "/usr/bin/passwd", "owner": "root", "mode": "4755", "binary": "passwd", "dangerous": false},
+      {"path": "/usr/bin/sudo", "owner": "root", "mode": "4755", "binary": "sudo", "dangerous": false}
+    ],
+    "sgid": []
+  },
+  "capabilities": [
+    {"path": "/usr/bin/python3.9", "capabilities": "cap_setuid+ep", "binary": "python3.9", "dangerous": true}
+  ],
+  "cron": {
+    "referenced_scripts": [
+      {"script": "/opt/backup.sh", "source": "/etc/cron.d/backup", "schedule": "*/5 * * * *", "writable": true, "parent_dir_writable": false}
+    ],
+    "user_crontab": "",
+    "files_seen": ["/etc/crontab", "/etc/cron.d/backup"]
+  },
+  "systemd_timers": {"available": true, "timers": ["logrotate.timer"], "writable_units": []},
+  "path_analysis": {
+    "user_path": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+    "writable_path_dirs": [],
+    "root_cron_path_hijack": []
+  },
+  "world_writable": {
+    "world_writable_files": ["/var/www/html/uploads/tmp.txt"],
+    "root_owned_writable_files": ["/opt/backup.sh"],
+    "world_writable_dirs": ["/var/www/html/uploads"]
+  },
+  "nfs_exports": [
+    {"export": "/srv/share", "line": "/srv/share 10.0.0.0/24(rw,sync,no_root_squash)", "no_root_squash": true}
+  ],
+  "credentials": {
+    "readable_private_keys": [
+      {"path": "/home/deploy/.ssh/id_rsa", "encrypted": false}
+    ],
+    "history_secret_hits": [
+      {"file": "/var/www/.bash_history", "match_count": 3}
+    ],
+    "config_secret_files": [
+      {"path": "/var/www/html/.env", "matched_key": "DB_PASSWORD="}
+    ],
+    "readable_other_homes": []
+  },
+  "docker": {
+    "socket": "/var/run/docker.sock",
+    "socket_present": true,
+    "socket_access": true,
+    "client_present": true,
+    "in_docker_group": true,
+    "local_images": ["alpine:latest"],
+    "in_container": false
+  },
+  "lxd": {"client_present": false, "in_lxd_group": false, "usable": false},
+  "container": {"in_container": false, "cap_eff": "00000000a80425fb", "privileged_hints": []},
+  "wildcards": {
+    "candidates": [
+      {"script": "/opt/backup.sh", "line": 4, "program": "tar", "text": "tar czf /root/backup.tgz *"}
+    ]
+  },
+  "validations": [
+    {
+      "rule_hint": "sudo-nopasswd-gtfobins",
+      "vector": "sudo",
+      "target": "/usr/bin/find",
+      "tier": "A",
+      "attempted": true,
+      "confirmed": true,
+      "reverted": true,
+      "evidence": "uid=0(root) gid=0(root) groups=0(root)",
+      "notes": "confirmed: executed as root / read root-only data"
+    },
+    {
+      "rule_hint": "writable-root-cron-script",
+      "vector": "cron",
+      "target": "/opt/backup.sh",
+      "tier": "A",
+      "attempted": true,
+      "confirmed": true,
+      "reverted": true,
+      "evidence": "test -w /opt/backup.sh -> writable; invoked by /etc/cron.d/backup",
+      "notes": "CONFIRMED write access. Not modified. A root cron/timer runs this file."
+    },
+    {
+      "rule_hint": "capabilities-gtfobins",
+      "vector": "capabilities",
+      "target": "/usr/bin/python3.9",
+      "tier": "A",
+      "attempted": true,
+      "confirmed": false,
+      "reverted": true,
+      "evidence": "",
+      "notes": "proof ran but did not confirm root"
+    },
+    {
+      "rule_hint": "docker-group-socket",
+      "vector": "docker",
+      "target": "docker.sock",
+      "tier": "A",
+      "attempted": true,
+      "confirmed": true,
+      "reverted": true,
+      "evidence": "docker info succeeded / socket writable",
+      "notes": "CONFIRMED socket access. Container escape (mount host /) NOT performed (Tier B)."
+    }
+  ],
+  "errors": []
+}

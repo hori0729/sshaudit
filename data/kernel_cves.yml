@@ -1,0 +1,179 @@
+# Known Linux kernel local privilege-escalation CVEs.
+#
+# Maintained by hand from public advisories. Used ONLY for a version-match
+# "theoretical" finding (Tier C): sshaudit never downloads or runs a kernel
+# exploit. A match means "this kernel is in the vulnerable range" -- confirm
+# manually and out of band.
+#
+# Schema (per entry):
+#   id                    CVE id
+#   name                  common name
+#   introduced_in         first vulnerable mainline version (inclusive), or null
+#   fixed_in_mainline     first fixed mainline version (exclusive upper bound)
+#   fixed_in_stable       backport fixes on stable branches: a match on the same
+#                         major.minor at or above this version is NOT vulnerable
+#   distro_notes          distro-specific caveats (backports change real status)
+#   arch                  affected architectures ("any" or a list)
+#   severity              critical | high | medium
+#   exploit_reliability   high | medium | low  (how reliable public PoCs are)
+#   references            advisory / writeup URLs
+#
+# Version comparison is done in Python (sshaudit/correlation): it parses the
+# running kernel's "major.minor.patch" and ignores the distro suffix.
+
+schema: 1
+
+cves:
+  - id: CVE-2016-5195
+    name: Dirty COW
+    introduced_in: "2.6.22"
+    fixed_in_mainline: "4.8.3"
+    fixed_in_stable:
+      "4.8": "4.8.3"
+      "4.7": "4.7.9"
+      "4.4": "4.4.26"
+    arch: any
+    severity: high
+    exploit_reliability: high
+    references:
+      - https://dirtycow.ninja/
+      - https://github.com/dirtycow/dirtycow.github.io/wiki/PoCs
+
+  - id: CVE-2017-16995
+    name: eBPF verifier sign-extension (BPF LPE)
+    introduced_in: "4.4"
+    fixed_in_mainline: "4.14.9"
+    fixed_in_stable:
+      "4.14": "4.14.9"
+      "4.9": "4.9.72"
+      "4.4": "4.4.111"
+    arch: [x86_64]
+    severity: high
+    exploit_reliability: high
+    distro_notes: "Requires unprivileged BPF enabled (kernel.unprivileged_bpf_disabled=0)."
+    references:
+      - https://www.exploit-db.com/exploits/45010
+
+  - id: CVE-2019-13272
+    name: ptrace PTRACE_TRACEME parent-child privilege inheritance
+    introduced_in: "4.10"
+    fixed_in_mainline: "5.1.17"
+    fixed_in_stable:
+      "5.1": "5.1.17"
+      "4.19": "4.19.58"
+      "4.14": "4.14.134"
+    arch: any
+    severity: high
+    exploit_reliability: high
+    distro_notes: "Needs a helper like pkexec/su present. Widely exploited."
+    references:
+      - https://bugs.chromium.org/p/project-zero/issues/detail?id=1903
+      - https://www.exploit-db.com/exploits/47133
+
+  - id: CVE-2021-22555
+    name: Netfilter x_tables heap OOB write
+    introduced_in: "2.6.19"
+    fixed_in_mainline: "5.12"
+    fixed_in_stable:
+      "5.11": "5.11.15"
+      "5.10": "5.10.31"
+      "5.4": "5.4.113"
+    arch: [x86_64]
+    severity: high
+    exploit_reliability: medium
+    distro_notes: "Needs user namespaces enabled (kernel.unprivileged_userns_clone=1)."
+    references:
+      - https://google.github.io/security-research/pocs/linux/cve-2021-22555/writeup.html
+
+  - id: CVE-2022-0847
+    name: Dirty Pipe
+    introduced_in: "5.8"
+    fixed_in_mainline: "5.16.11"
+    fixed_in_stable:
+      "5.16": "5.16.11"
+      "5.15": "5.15.25"
+      "5.10": "5.10.102"
+    arch: any
+    severity: high
+    exploit_reliability: high
+    distro_notes: "Overwrites read-only files (e.g. /etc/passwd) via pipe page cache. Very reliable."
+    references:
+      - https://dirtypipe.cm4all.com/
+
+  - id: CVE-2023-0386
+    name: OverlayFS uid/gid mapping capability leak
+    introduced_in: "5.11"
+    fixed_in_mainline: "6.2"
+    fixed_in_stable:
+      "6.1": "6.1.9"
+      "5.15": "5.15.91"
+      "5.10": "5.10.166"
+    arch: any
+    severity: high
+    exploit_reliability: high
+    distro_notes: "Needs unprivileged user namespaces + FUSE. Public PoC copies a SUID binary out of an overlay mount."
+    references:
+      - https://github.com/xkaneiki/CVE-2023-0386
+
+  - id: CVE-2023-2640
+    name: "GameOver(lay) - Ubuntu OverlayFS setattr"
+    introduced_in: null
+    fixed_in_mainline: null
+    fixed_in_stable: {}
+    ubuntu_series: ["6.2", "5.19", "5.15", "5.4"]
+    arch: any
+    severity: high
+    exploit_reliability: high
+    distro_notes: >
+      Ubuntu-only regression (paired with CVE-2023-32629). Affected: Ubuntu
+      kernels 6.2 (23.04), 5.19 (22.10), 5.15 (22.04), 5.4 (20.04) before the
+      July 2023 SRU. Match on os.id == ubuntu plus these series; confirm with
+      `apt changelog linux-image-$(uname -r)`.
+    references:
+      - https://www.wiz.io/blog/ubuntu-overlayfs-vulnerability
+
+  - id: CVE-2023-32233
+    name: Netfilter nf_tables use-after-free (anonymous sets)
+    introduced_in: "5.5"
+    fixed_in_mainline: "6.4"
+    fixed_in_stable:
+      "6.3": "6.3.2"
+      "6.1": "6.1.28"
+    arch: [x86_64]
+    severity: high
+    exploit_reliability: medium
+    distro_notes: "Needs CAP_NET_ADMIN in a user namespace (unprivileged userns)."
+    references:
+      - https://github.com/Liuk3r/CVE-2023-32233
+
+  - id: CVE-2024-1086
+    name: Netfilter nf_tables nft_verdict_init double-free
+    introduced_in: "3.15"
+    fixed_in_mainline: "6.8"
+    fixed_in_stable:
+      "6.7": "6.7.3"
+      "6.6": "6.6.15"
+      "6.1": "6.1.76"
+      "5.15": "5.15.149"
+      "5.10": "5.10.210"
+    arch: [x86_64, aarch64]
+    severity: high
+    exploit_reliability: high
+    distro_notes: "Needs unprivileged user namespaces. Very reliable public PoC (mitigation: sysctl kernel.unprivileged_userns_clone=0)."
+    references:
+      - https://pwning.tech/nftables/
+
+  - id: CVE-2022-2588
+    name: cls_route filter use-after-free (route4)
+    introduced_in: "2.6.12"
+    fixed_in_mainline: "6.0"
+    fixed_in_stable:
+      "5.19": "5.19.4"
+      "5.15": "5.15.63"
+      "5.10": "5.10.139"
+    arch: [x86_64]
+    severity: high
+    exploit_reliability: medium
+    distro_notes: "Needs CAP_NET_ADMIN (user namespace)."
+    references:
+      - https://www.openwall.com/lists/oss-security/2022/08/16/1

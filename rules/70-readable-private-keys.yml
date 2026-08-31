@@ -1,0 +1,33 @@
+id: readable-private-keys
+title: "Claves SSH privadas legibles por el usuario"
+category: credentials
+vector: credential-access
+severity: high
+tier: A
+reaches_root: false
+validator: readable_secrets
+
+match:
+  all:
+    - path: credentials.readable_private_keys
+      not_empty: true
+
+params:
+  kind: keys
+
+step: "{user} puede leer la clave privada {target}: material para moverse a otros usuarios/hosts (posiblemente root)."
+
+exploitation_steps: |
+  Confirmado: la clave es legible. Pasos de un atacante:
+    1. Copiar {target}.
+    2. Determinar su clave pública asociada y buscar en authorized_keys de otros
+       usuarios (incl. /root/.ssh/authorized_keys si es legible) y otros hosts.
+    3. ssh -i clave usuario@host
+
+remediation: |
+  Permisos 0600 y propiedad del dueño para toda clave privada; directorio .ssh
+  en 0700. Rotar cualquier clave que haya estado expuesta. Preferir claves con
+  passphrase y/o certificados SSH de vida corta.
+
+references:
+  - https://man.openbsd.org/ssh

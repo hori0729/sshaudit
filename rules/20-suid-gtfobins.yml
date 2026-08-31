@@ -1,0 +1,41 @@
+id: suid-gtfobins
+title: "Binario SUID root explotable (GTFOBins)"
+category: suid
+vector: suid
+severity: critical
+tier: A
+reaches_root: true
+validator: from_validation
+validation_hint: suid-gtfobins
+
+match:
+  all:
+    - path: suid_sgid.suid
+      where:
+        all:
+          - path: dangerous
+            truthy: true
+
+params:
+  hint: suid-gtfobins
+  fallback_list: suid_sgid.suid
+  fallback_where:
+    all:
+      - path: dangerous
+        truthy: true
+  fallback_target: path
+
+step: "{target} es SUID root y está en GTFOBins -> ejecutarlo lanza una shell con euid 0."
+
+exploitation_steps: |
+  1. {target} <técnica GTFOBins para SUID>   (p.ej. `-p` en bash, `-exec` en find)
+  2. Shell con euid=0. El motor lo validó ejecutando `id` por esa vía.
+  Nota: si la shell no mantiene privilegios, usar `-p` / `setuid(0)` según el binario.
+
+remediation: |
+  Quitar el bit SUID (`chmod u-s {target}`) salvo que sea estrictamente
+  necesario. Si lo es, reemplazar por una capability acotada o un helper con
+  privilegios mínimos. Auditar el resto de binarios SUID no estándar.
+
+references:
+  - https://gtfobins.github.io/

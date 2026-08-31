@@ -1,0 +1,49 @@
+id: writable-root-cron-script
+title: "Script ejecutado por root (cron/systemd) escribible por el usuario"
+category: cron
+vector: cron
+severity: critical
+tier: A
+reaches_root: true
+validator: from_validation
+validation_hint: writable-root-cron-script
+
+match:
+  any:
+    - path: cron.referenced_scripts
+      where:
+        any:
+          - path: writable
+            truthy: true
+          - path: parent_dir_writable
+            truthy: true
+    - path: systemd_timers.writable_units
+      not_empty: true
+
+params:
+  hint: writable-root-cron-script
+  fallback_list: cron.referenced_scripts
+  fallback_where:
+    any:
+      - path: writable
+        truthy: true
+      - path: parent_dir_writable
+        truthy: true
+  fallback_target: script
+
+step: "{target} lo ejecuta root periódicamente y {user} puede modificarlo -> code exec como root en la próxima corrida."
+
+exploitation_steps: |
+  1. Confirmado que {target} (o su directorio) es escribible por {user}.
+  2. Un atacante añadiría al script algo como:
+       cp /bin/bash /tmp/.r && chmod 4755 /tmp/.r     (o un reverse shell)
+  3. Esperar a que el cron/timer de root lo ejecute; luego /tmp/.r -p -> root.
+  El motor NO modificó el archivo: solo verificó el permiso de escritura.
+
+remediation: |
+  Hacer el script propiedad de root con permisos 0644 (0755) y su directorio
+  no escribible por otros. Nunca ejecutar desde cron scripts ubicados en
+  directorios world/group-writable (p.ej. /tmp, /var/tmp, home de servicio).
+
+references:
+  - https://book.hacktricks.wiki/en/linux-hardening/privilege-escalation/index.html#cron-jobs

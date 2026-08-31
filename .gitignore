@@ -1,0 +1,13 @@
+# Secrets and infrastructure description -- never commit
+.env
+inventory.yml
+
+# Audit output contains sensitive host detail (permissions, key paths, creds)
+results/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/

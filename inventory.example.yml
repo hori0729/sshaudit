@@ -1,0 +1,41 @@
+# sshaudit inventory -- copy to inventory.yml and edit.
+#
+# inventory.yml is git-ignored: it names your infrastructure. Never commit it.
+#
+# You confirm below that you own or are explicitly authorised to run
+# post-exploitation privilege-escalation testing against every host listed.
+authorized: false
+
+defaults:
+  user: audit
+  port: 22
+  auth: agent          # agent | key | password
+
+hosts:
+  - alias: web-prod-1
+    description: "Front-end web node"
+    host: 10.0.1.20
+    user: www-data
+    auth: key
+    key: ~/.ssh/audit_ed25519
+    tags: [prod, web]
+
+  - alias: db-1
+    description: "Primary database (reached via ~/.ssh/config alias)"
+    host: db1.internal
+    auth: agent
+    tags: [prod, db]
+
+  - alias: staging-1
+    host: 10.0.2.15
+    user: deploy
+    auth: password
+    password_env: STAGING1_SSH_PASSWORD   # value comes from .env / real env
+    tags: [staging]
+    ssh_options:
+      StrictHostKeyChecking: accept-new
+
+  - alias: legacy-box
+    host: 10.0.9.9
+    enabled: false        # kept for reference, skipped by default runs
+    tags: [legacy]

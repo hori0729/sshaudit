@@ -1,0 +1,34 @@
+id: sudo-nopasswd-all
+title: "sudo (ALL) NOPASSWD: ALL"
+category: sudo
+vector: sudo
+severity: critical
+tier: A
+reaches_root: true
+validator: from_validation
+validation_hint: sudo-nopasswd-all
+
+match:
+  all:
+    - path: sudo.all_nopasswd
+      truthy: true
+
+params:
+  hint: sudo-nopasswd-all
+
+evidence_paths:
+  - sudo.raw
+
+step: "{user} tiene `NOPASSWD: ALL` en sudoers -> `sudo -i` da root directo."
+
+exploitation_steps: |
+  1. sudo -n id            -> uid=0(root)   (validado por el motor)
+  2. sudo -n /bin/sh  o  sudo -i   -> shell de root.
+
+remediation: |
+  Eliminar la regla `ALL NOPASSWD: ALL`. Exigir password (quitar NOPASSWD) y/o
+  acotar los comandos permitidos. Considerar `Defaults timestamp_timeout` corto y
+  `Defaults use_pty`, `log_output`.
+
+references:
+  - https://gtfobins.github.io/gtfobins/sudo/

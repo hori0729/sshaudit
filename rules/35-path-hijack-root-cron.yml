@@ -1,0 +1,35 @@
+id: path-hijack-root-cron
+title: "Directorio escribible primero en el PATH de un cron de root"
+category: cron
+vector: path-hijack
+severity: high
+tier: A
+reaches_root: true
+validator: list_items
+
+match:
+  all:
+    - path: path_analysis.root_cron_path_hijack
+      not_empty: true
+
+params:
+  list_path: path_analysis.root_cron_path_hijack
+  target_field: writable_dir
+  status: potential
+  evidence_fields: [cron_file, path_value, writable_dir]
+
+step: "{user} puede escribir en {target}, que aparece antes que los directorios del sistema en el PATH de un cron de root -> colocar un binario con el nombre de un comando invocado sin ruta absoluta."
+
+exploitation_steps: |
+  No verificado (requiere que corra el cron). Condición confirmada: {target} es
+  escribible y está temprano en el PATH del cron.
+  Un atacante crearía en {target} un ejecutable llamado igual que un comando que
+  el script de cron invoca sin path absoluto (p.ej. `tar`, `date`, `backup`).
+
+remediation: |
+  Definir `PATH=` explícito y seguro al inicio del crontab/script, con solo
+  /usr/sbin:/usr/bin:/sbin:/bin. Invocar todos los binarios con ruta absoluta.
+  Quitar permisos de escritura sobre {target} para usuarios no privilegiados.
+
+references:
+  - https://book.hacktricks.wiki/en/linux-hardening/privilege-escalation/index.html#cron-using-a-script-with-a-wildcard-wildcard-injection

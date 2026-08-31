@@ -1,0 +1,35 @@
+id: other-privileged-group
+title: "Miembro de grupo privilegiado (adm, shadow, staff, ...)"
+category: groups
+vector: privileged-group
+severity: high
+tier: A
+reaches_root: false
+validator: list_items
+
+match:
+  all:
+    - path: identity.privileged_groups
+      contains_any: [adm, shadow, staff, video, root, systemd-journal]
+
+params:
+  list_path: identity.privileged_groups
+  keep_values: [adm, shadow, staff, video, root, systemd-journal]
+  status: potential
+
+step: "{user} pertenece al grupo {target}: no da root directo, pero habilita lectura de secretos o escritura en rutas que sí llevan a root."
+
+exploitation_steps: |
+  No verificado. Según el grupo:
+  - shadow: leer /etc/shadow -> crackear el hash de root offline.
+  - adm / systemd-journal: leer /var/log/* y el journal -> credenciales, tokens.
+  - staff: escribir en /usr/local -> hijack de scripts admin/cron que corren como root.
+  - video: leer el framebuffer -> capturar pantalla en sistemas de escritorio.
+
+remediation: |
+  Revisar si la membresía es necesaria. Para 'staff', asegurarse de que nada
+  privilegiado ejecute binarios desde /usr/local/{bin,sbin}. Rotar cualquier
+  credencial que haya podido quedar expuesta en logs.
+
+references:
+  - https://book.hacktricks.wiki/en/linux-hardening/privilege-escalation/interesting-groups-linux-pe/index.html

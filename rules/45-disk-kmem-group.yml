@@ -1,0 +1,36 @@
+id: disk-kmem-group
+title: "Miembro de un grupo con acceso crudo a disco / memoria (disk, kmem)"
+category: groups
+vector: privileged-group
+severity: critical
+tier: A
+reaches_root: true
+validator: list_items
+
+match:
+  any:
+    - path: identity.privileged_groups
+      contains: disk
+    - path: identity.privileged_groups
+      contains: kmem
+
+params:
+  list_path: identity.privileged_groups
+  keep_values: [disk, kmem]
+  status: potential
+
+step: "{user} pertenece al grupo {target}: acceso directo a dispositivos de bloque o a la memoria del kernel = root efectivo."
+
+exploitation_steps: |
+  No verificado (Tier B).
+  - grupo disk: `debugfs -w /dev/sda1` -> leer/escribir cualquier archivo
+    (p.ej. volcar /etc/shadow, o escribir una clave SSH en /root/.ssh).
+  - grupo kmem: leer/escribir /dev/mem, /dev/kmem -> parchear estructuras del
+    kernel para elevar privilegios.
+
+remediation: |
+  Quitar a los usuarios de estos grupos. Estos permisos son equivalentes a root
+  y no deberían usarse para tareas administrativas normales.
+
+references:
+  - https://book.hacktricks.wiki/en/linux-hardening/privilege-escalation/interesting-groups-linux-pe/index.html

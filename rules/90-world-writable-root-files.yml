@@ -1,0 +1,33 @@
+id: world-writable-root-files
+title: "Archivos propiedad de root escribibles por el usuario"
+category: filesystem
+vector: writable-file
+severity: high
+tier: A
+reaches_root: false
+validator: list_items
+
+match:
+  all:
+    - path: world_writable.root_owned_writable_files
+      not_empty: true
+
+params:
+  list_path: world_writable.root_owned_writable_files
+  status: potential
+
+step: "{user} puede escribir {target}, propiedad de root. Según qué sea el archivo, puede llevar a root."
+
+exploitation_steps: |
+  No verificado. Evaluar qué es {target}:
+  - script/unit ejecutado por root  -> code exec (ver reglas de cron/timers).
+  - archivo sourced por un shell de root (/etc/profile.d/*, ~/.bashrc de root).
+  - archivo de config de un servicio privilegiado (sudoers.d, ssh, nginx include).
+  - /etc/passwd o /etc/shadow  -> agregar/editar la línea de root.
+
+remediation: |
+  Restaurar propiedad y permisos correctos (normalmente root:root 0644/0640).
+  Investigar cómo quedó escribible (deploy con umask malo, chmod recursivo).
+
+references:
+  - https://book.hacktricks.wiki/en/linux-hardening/privilege-escalation/index.html#writable-files
